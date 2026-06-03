@@ -85,6 +85,7 @@ jobs:
         run: |
           cd ~/log430-labo3-E26 2>/dev/null || true
           docker compose down 2>/dev/null || true
+          sudo rm -rf ~/log430-labo3-E26
         continue-on-error: true
 
       - name: Checkout
