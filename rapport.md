@@ -5,7 +5,7 @@ Parmi les méthodes de l'activité 2 (smoke test), seulement la requête de vér
 
 Concernant l'idempotence, la requête de suppression d'une commande `client.delete(f'/orders/{order_id}')` et de vérification du stock `client.get(f'/stocks/{product_id}')` sont idempotentes. Dans le cas de la suppression, envoyer la requête donne le même résultat: la commande n'existe plus. Pour la requête de vérification, on obtient la même information, donc c'est idempotent.
 
-Les requêtes POST ajoutant des produits, stocks, ou commandes ne sont ni sûres ni idempotentes, étant donnée car ils modifient l'état du serveur (non sûre). De plus, effectuer un POST ne sera pas idempotent, car on se retrouve avec deux produits (par exemple) avec des id distincts.
+Les requêtes POST ajoutant des produits, stocks, ou commandes ne sont ni sûres ni idempotentes, étant donnée qu'ils modifient l'état du serveur (non sûre). De plus, effectuer un POST ne sera pas idempotent, car on se retrouve avec deux produits (par exemple) avec des id distincts.
 
 **Question 2**:
 
@@ -117,3 +117,18 @@ networks:
     external: true
 ```
 
+---
+
+## Pipeline CI/CD:
+
+Ma pipeline est constituée de 2 jobs:
+
+La première consiste à exécuter les tests unitaires. Pour s'y faire, on installe les dépendances, setup le fichier .env, on démarre le conteneur, on vérifie que MySQL et Redis fonctionnent bien, et finalement on exécute les tests. Prendre note que ces tests ne s'effectuent pas sur la VM, mais plutôt sur les serveurs de GitHub
+
+La deuxième job consiste à effectuer le déploiement sur la VM. Ce job s'effectue seulement si la première job (les tests) a passé. Il s'agit surtout de copier/cloner les fichiers du repo localement sur la VM, créer le fichier .env, créer le réseau docker, build & docker compose up, et finalement, si MySQL & Redis fonctionnent bien et qu'il n'y a eu aucune erreur jusqu'à présent, on peut considérer l'application déployée!
+
+Voici des images démontrant le résultat de la pipeline fonctionnelle:
+
+![Overall](images\image1.png)
+![Test unitaire](images\image2.png)
+![Déploiement](images\image3.png)
