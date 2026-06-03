@@ -45,14 +45,17 @@ CREATE TABLE order_items (
 
 -- Product stocks 
 -- ATTENTION: Veuillez créer cette table manuellement dans le cadre des activités
-/* 
+
+-- Je décommente ceci pusisqu'il le faut pour la pipeline CI/CD
+
+
 DROP TABLE IF EXISTS stocks;
 CREATE TABLE stocks (
     product_id INT PRIMARY KEY,
     quantity INT NOT NULL DEFAULT 0,
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT
 );
-*/
+
 
 -- Mock data: users
 INSERT INTO users (name, email) VALUES
