@@ -122,6 +122,7 @@ jobs:
 
       - name: Vérifier le déploiement
         run: |
+          cd ~/log430-labo3-E26
           sleep 10
           timeout=120
           until docker compose exec -T mysql mysqladmin ping -h localhost -u root -proot --silent 2>/dev/null; do
