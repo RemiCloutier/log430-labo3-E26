@@ -4,6 +4,7 @@ SPDX - License - Identifier: LGPL - 3.0 - or -later
 Auteurs : Gabriel C. Ullmann, Fabio Petrillo, 2025
 """
 from sqlalchemy import text
+from stocks.models.product import Product
 from stocks.models.stock import Stock
 from db import get_redis_conn, get_sqlalchemy_session
 
@@ -28,7 +29,13 @@ def set_stock_for_product(product_id, quantity):
             session.commit()
   
         r = get_redis_conn()
-        r.hset(f"stock:{product_id}", "quantity", quantity)
+        product = session.query(Product).filter_by(id=product_id).first()
+        r.hset(f"stock:{product_id}", mapping={
+            "quantity": quantity,
+            "name": product.name,
+            "sku": product.sku,
+            "price": float(product.price),
+        })
         return response_message
     except Exception as e:
         session.rollback()
@@ -89,7 +96,14 @@ def update_stock_redis(order_items, operation):
             else:  
                 new_quantity = current_stock - quantity
             
-            pipeline.hset(f"stock:{product_id}", "quantity", new_quantity)
+            session = get_sqlalchemy_session()
+            product = session.query(Product).filter_by(id=product_id).first()
+            pipeline.hset(f"stock:{product_id}", mapping = {
+                "quantity": new_quantity,
+                "name": product.name,
+                "sku": product.sku,
+                "price": float(product.price)
+            })
         
         pipeline.execute()
     

@@ -1,6 +1,8 @@
 services:
   store_manager:
     build: .
+    env_file:
+      - .env
     environment:
       - PYTHONUNBUFFERED=1
     volumes:

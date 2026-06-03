@@ -24,12 +24,128 @@ jobs:
           echo "DB_HOST=127.0.0.1" >> .env
           echo "DB_PORT=3306" >> .env
           echo "DB_NAME=labo03_db" >> .env
-          echo "DB_USER=labo03" >> .env
-          echo "DB_PASS=labo03" >> .env
+          echo "DB_USER=${{ secrets.DB_USER }}" >> .env
+          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
           echo "REDIS_HOST=127.0.0.1" >> .env
           echo "REDIS_PORT=6379" >> .env
           echo "REDIS_DB=0" >> .env
 
+      - name: Démarrer les conteneurs
+        run: |
+          docker network create labo03-network
+          docker compose down -v
+          docker compose build --no-cache
+          docker compose up -d
+
+      - name: Attendre MySQL
+        run: |
+          sleep 15
+          timeout=120
+          until docker compose exec -T mysql mysqladmin ping -h localhost -u root -proot --silent 2>/dev/null; do
+            echo "Waiting for MySQL..."
+            sleep 3
+            timeout=$((timeout - 3))
+            if [ $timeout -le 0 ]; then
+              echo "MySQL failed to start"
+              docker compose ps
+              docker compose logs mysql --tail=50
+              exit 1
+            fi
+          done
+          sleep 10
+
+      - name: Attendre Redis
+        run: |
+          timeout=30
+          until docker compose exec -T redis redis-cli ping | grep -q PONG; do
+            echo "Waiting for Redis..."
+            sleep 2
+            timeout=$((timeout - 2))
+            if [ $timeout -le 0 ]; then
+              echo "Redis failed to start"
+              exit 1
+            fi
+          done
+
       - name: Run tests
-        working-directory: src
-        run: echo "Call pytest command here!"
+        run: docker compose exec -T store_manager pytest
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
+
+  deploy:
+    name: Déploiement automatique
+    runs-on: self-hosted
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Cleanup conteneur
+        run: |
+          cd ~/log430-labo3-E26 2>/dev/null || true
+          docker compose down 2>/dev/null || true
+        continue-on-error: true
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: log430-labo3-E26
+
+      - name: Copier vers le répertoire
+        run: |
+          rm -rf ~/log430-labo3-E26
+          cp -r log430-labo3-E26 ~/log430-labo3-E26
+
+      - name: Créer le fichier .env
+        run: |
+          cd ~/log430-labo3-E26
+          cat > .env << 'EOF'
+          DB_HOST=mysql
+          DB_PORT=3306
+          DB_NAME=labo03_db
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          REDIS_HOST=redis
+          REDIS_PORT=6379
+          REDIS_DB=0
+          EOF
+
+      - name: Créer le réseau Docker
+        run: docker network create labo03-network 2>/dev/null || true
+
+      - name: Build et démarrer l'application
+        run: |
+          cd ~/log430-labo3-E26
+          docker compose build
+          docker compose up -d
+
+      - name: Vérifier le déploiement
+        run: |
+          sleep 10
+          timeout=120
+          until docker compose exec -T mysql mysqladmin ping -h localhost -u root -proot --silent 2>/dev/null; do
+            echo "Waiting for MySQL..."
+            sleep 3
+            timeout=$((timeout - 3))
+            if [ $timeout -le 0 ]; then
+              echo "MySQL failed to start"
+              docker compose ps
+              docker compose logs mysql --tail=50
+              exit 1
+            fi
+          done
+
+          timeout=30
+          until docker compose exec -T redis redis-cli ping | grep -q PONG; do
+            echo "Waiting for Redis..."
+            sleep 2
+            timeout=$((timeout - 2))
+            if [ $timeout -le 0 ]; then
+              echo "Redis failed to start"
+              exit 1
+            fi
+          done
+
+          echo "Deployment succeeded!"
+          docker ps

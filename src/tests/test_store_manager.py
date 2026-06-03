@@ -27,12 +27,39 @@ def test_stock_flow(client):
                           content_type='application/json')
     
     assert response.status_code == 201
-    data = response.get_json()
-    assert data['product_id'] > 0 
+    product_id = response.get_json()['product_id']
+    assert product_id > 0 
 
     # 2. Ajoutez 5 unités au stock de cet article (`POST /stocks`)
+    stock_data = {'product_id': product_id, 'quantity': 5}
+    response = client.post('/stocks',
+                           data=json.dumps(stock_data),
+                           content_type='application/json')
+    assert response.status_code == 201
+
     # 3. Vérifiez le stock, votre article devra avoir 5 unités dans le stock (`GET /stocks/:id`)
+    response = client.get(f'/stocks/{product_id}')
+    assert response.status_code == 200
+    assert response.get_json()['quantity'] == 5
+
     # 4. Faites une commande de l'article que vous avez crée, 2 unités (`POST /orders`)
-    # 5. Vérifiez le stock encore une fois (`GET /stocks/:id`)
+    order_data = {'product_id': product_id, 'quantity': 2}
+    response = client.post('/orders',
+                           data=json.dumps(order_data),
+                           content_type='application/json')
+    assert response.status_code == 201
+    order_id = response.get_json()['order_id']
+
+    # 5. Vérifiez le stock encore une fois (`GET /stocks/:id`) (5 - 2 -> 3)
+    response = client.get(f'/stocks/{product_id}')
+    assert response.status_code == 200
+    assert response.get_json()['quantity'] == 3
+
+
     # 6. Étape extra: supprimez la commande et vérifiez le stock de nouveau. Le stock devrait augmenter après la suppression de la commande.
-    assert "Le test n'est pas encore là" == 1
+    response = client.delete(f'/orders/{order_id}')
+    assert response.status_code == 200
+
+    response = client.get(f'/stocks/{product_id}')
+    assert response.status_code == 200
+    assert response.get_json()['quantity'] == 5
