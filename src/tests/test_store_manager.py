@@ -35,6 +35,7 @@ def test_stock_flow(client):
     response = client.post('/stocks',
                            data=json.dumps(stock_data),
                            content_type='application/json')
+    print(response.get_json())
     assert response.status_code == 201
 
     # 3. Vérifiez le stock, votre article devra avoir 5 unités dans le stock (`GET /stocks/:id`)
